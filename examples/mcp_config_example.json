@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ted_procurement": {
+      "command": "ted-procurement-mcp",
+      "env": {
+        "MCP_TRANSPORT": "stdio"
+      }
+    }
+  }
+}

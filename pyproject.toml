@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ted-procurement-mcp"
+version = "0.2.0"
+description = "MCP server that turns EU TED public procurement data into supplier-facing intelligence."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "alipay-sdk-python==3.7.1360",
+  "pycryptodome==3.23.0",
+  "PyJWT[crypto]==2.14.0",
+  "httpx>=0.28,<1",
+  "pydantic>=2.10,<3",
+  "mcp>=2,<3",
+  "starlette>=0.50,<1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9,<10"]
+
+[project.scripts]
+ted-procurement-mcp = "ted_procurement_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.vercel]
+entrypoint = "app:app"
