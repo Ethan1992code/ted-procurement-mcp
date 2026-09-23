@@ -89,4 +89,4 @@ def register_web_shop(server, service):
     @server.custom_route('/shop/result',methods=['GET'])
     async def result(request):
         return HTMLResponse(Path(__file__).with_name('shop_result.html').read_text(encoding='utf-8'),headers={**headers,
-            'Content-Security-Policy':"default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"})
+            'Content-Security-Policy':"default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})

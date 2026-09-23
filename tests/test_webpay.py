@@ -49,3 +49,11 @@ def test_preview_cannot_charge(monkeypatch):
         assert c.post('/shop/create',json={'keywords':'pumps'}).status_code==503
         assert c.post('/shop/notify',content='trade_status=TRADE_SUCCESS').status_code==503
         assert c.get('/shop/result').status_code==200
+
+@pytest.mark.parametrize('request_id',[None,123,{},'invalid'])
+def test_invalid_request_id_rejected_before_store(request_id):
+    store=Store()
+    c=WebCheckout(None,store,None)
+    with pytest.raises(ValueError):
+        asyncio.run(c.create('pumps','a'*64,request_id))
+    assert not store.calls

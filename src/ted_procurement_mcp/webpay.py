@@ -64,7 +64,7 @@ class WebCheckout:
         self.gateway,self.store,self.service = gateway,store,service
 
     async def create(self, keywords, token, request_id):
-        if not isinstance(keywords,str) or not 1<=len(keywords.strip())<=200 or not re.fullmatch(r'[a-f0-9]{32}',request_id):
+        if not isinstance(keywords,str) or not 1<=len(keywords.strip())<=200 or not isinstance(request_id,str) or not re.fullmatch(r'[a-f0-9]{32}',request_id):
             raise ValueError('Invalid query')
         return await self.store.run('create', {'id':'WEB'+uuid.uuid4().hex,
             'session_hash':session_hash(token),'request_id':request_id,
