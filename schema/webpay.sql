@@ -8,6 +8,7 @@ create table if not exists public.ted_web_orders (
  created_at timestamptz not null default now(),
  unique(session_hash,request_id)
 );
+alter table public.ted_web_orders add column if not exists refund_request_id text;
 alter table public.ted_web_orders enable row level security;
 revoke all on public.ted_web_orders from anon,authenticated;
 
@@ -30,11 +31,22 @@ declare o public.ted_web_orders; begin
  elsif p_action='paid' then
   if o.amount is distinct from (p_data->>'amount')::numeric or coalesce(p_data->>'trade_no','')='' then return null; end if;
   if o.trade_no is not null and o.trade_no is distinct from p_data->>'trade_no' then return null; end if;
-  if o.state in ('PENDING','CLOSED') then
+  if o.state in ('PENDING','CLOSING','CLOSED') then
    update public.ted_web_orders set state='PAID',trade_no=p_data->>'trade_no' where id=o.id returning * into o;
   end if;
  elsif p_action='closed' then
-  if o.state='PENDING' then update public.ted_web_orders set state='CLOSED' where id=o.id returning * into o; end if;
+  if o.state in ('PENDING','CLOSING') then update public.ted_web_orders set state='CLOSED' where id=o.id returning * into o; end if;
+ elsif p_action='close_prepare' then
+  if o.state not in ('PENDING','CLOSING') then return null; end if;
+  update public.ted_web_orders set state='CLOSING' where id=o.id returning * into o;
+ elsif p_action='refund_prepare' then
+  if o.state not in ('PAID','GENERATING','READY','REFUNDING','REFUNDED') or o.trade_no is null then return null; end if;
+  if o.state not in ('REFUNDING','REFUNDED') then
+   update public.ted_web_orders set state='REFUNDING',refund_request_id='RF'||o.id,lease=null,lease_until=null where id=o.id returning * into o;
+  end if;
+ elsif p_action='refunded' then
+  if o.state not in ('REFUNDING','REFUNDED') or o.refund_request_id is null or o.refund_request_id is distinct from p_data->>'refund_request_id' then return null; end if;
+  update public.ted_web_orders set state='REFUNDED',result=null where id=o.id returning * into o;
  elsif p_action='claim' then
   if o.state='READY' then return to_jsonb(o); end if;
   if o.state not in ('PAID','GENERATING') then return null; end if;

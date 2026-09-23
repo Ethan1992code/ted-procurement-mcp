@@ -87,7 +87,7 @@ class WebCheckout:
     async def status(self, order_id, token):
         o=await self.get(order_id,token)
         if not o: return None
-        if o['state']=='PENDING':
+        if o['state'] in ('PENDING','CLOSING'):
             q=await self.gateway.query(o)
             if q.get('code')=='10000':
                 if q.get('out_trade_no')!=o['id'] or money(q.get('total_amount'))!=money(o['amount']):
