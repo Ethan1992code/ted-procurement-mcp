@@ -57,3 +57,20 @@ def test_invalid_request_id_rejected_before_store(request_id):
     with pytest.raises(ValueError):
         asyncio.run(c.create('pumps','a'*64,request_id))
     assert not store.calls
+
+def test_form_pages_preserve_same_origin_for_browser_posts(monkeypatch):
+    monkeypatch.delenv('WEBPAY_ENABLED',raising=False)
+    from starlette.testclient import TestClient
+    from ted_procurement_mcp.server import create_http_app
+    with TestClient(create_http_app()) as c:
+        for path in ('/shop','/shop/result'):
+            assert c.get(path).headers['referrer-policy']=='same-origin'
+
+@pytest.mark.parametrize('origin',[None,'null','https://untrusted.example'])
+def test_payment_rejects_untrusted_origin(monkeypatch,origin):
+    from starlette.testclient import TestClient
+    from ted_procurement_mcp.server import create_http_app
+    monkeypatch.setattr('ted_procurement_mcp.web_shop.build_checkout',lambda service:object())
+    monkeypatch.setenv('WEBPAY_BASE_URL','https://shop.example')
+    with TestClient(create_http_app()) as c:
+        assert c.post('/shop/pay',headers={'Origin':origin} if origin else {}).status_code==403

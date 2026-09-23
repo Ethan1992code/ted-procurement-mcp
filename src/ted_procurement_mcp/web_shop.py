@@ -27,7 +27,7 @@ def register_web_shop(server, service):
             page=page.replace('当前为页面预览，付款与订单功能尚未开放。','请使用同一浏览器保留订单并查看结果。')
         response=HTMLResponse(page,
             headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-                     'Referrer-Policy': 'no-referrer',
+                     'Referrer-Policy': 'same-origin',
                      'Content-Security-Policy': "default-src 'none'; connect-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})
         if not request.cookies.get('ted_web_session'):
             response.set_cookie('ted_web_session',secrets.token_hex(32),secure=True,httponly=True,samesite='lax',max_age=2592000)
@@ -88,5 +88,5 @@ def register_web_shop(server, service):
 
     @server.custom_route('/shop/result',methods=['GET'])
     async def result(request):
-        return HTMLResponse(Path(__file__).with_name('shop_result.html').read_text(encoding='utf-8'),headers={**headers,
+        return HTMLResponse(Path(__file__).with_name('shop_result.html').read_text(encoding='utf-8'),headers={**headers,'Referrer-Policy':'same-origin',
             'Content-Security-Policy':"default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})
