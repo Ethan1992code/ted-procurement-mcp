@@ -113,7 +113,7 @@ def _transport_security_settings():
 
 
 def create_http_app(*, store: Any | None = None):
-    from .asgi import ApiKeyASGIMiddleware
+    from .asgi import ApiKeyASGIMiddleware, MCPBrowserAccess
 
     server, store = create_server(store=store)
     app = server.streamable_http_app(
@@ -124,7 +124,9 @@ def create_http_app(*, store: Any | None = None):
     require_api_key = _truthy(os.getenv("MCP_REQUIRE_API_KEY"))
     gate = ApiKeyGate(store) if store is not None else None
     from .oauth_auth import verifier_from_env
-    return ApiKeyASGIMiddleware(app, gate, required=require_api_key, oauth_verifier=verifier_from_env())
+    protected = ApiKeyASGIMiddleware(app, gate, required=require_api_key, oauth_verifier=verifier_from_env())
+    origins = [x.strip() for x in os.getenv('MCP_ALLOWED_ORIGINS', '').split(',') if x.strip() and x.strip() != '*']
+    return MCPBrowserAccess(protected, origins)
 
 
 def main() -> None:

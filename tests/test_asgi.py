@@ -39,3 +39,22 @@ def test_health_app_reports_service_without_secrets():
     response = TestClient(app).get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "service": "ted-procurement-mcp", "version": "0.2.0", "warehouse": "supabase"}
+
+def test_mcp_cors_preflight_does_not_bypass_auth_or_cover_shop():
+    from ted_procurement_mcp.asgi import MCPBrowserAccess
+    async def endpoint(request):return JSONResponse({'ok':True})
+    inner=Starlette(routes=[Route('/mcp',endpoint,methods=['POST']),Route('/shop',endpoint)])
+    store=MemoryAuthStore()
+    client=TestClient(MCPBrowserAccess(ApiKeyASGIMiddleware(inner,ApiKeyGate(store),required=True),['https://mcpize.com']))
+    headers={'Origin':'https://mcpize.com','Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'content-type,authorization,mcp-protocol-version'}
+    preflight=client.options('/mcp',headers=headers)
+    assert preflight.status_code==200
+    assert preflight.headers['access-control-allow-origin']=='https://mcpize.com'
+    assert store.count==0
+    response=client.post('/mcp',headers={'Origin':'https://mcpize.com'})
+    assert response.status_code==401
+    assert response.headers['access-control-allow-origin']=='https://mcpize.com'
+    assert 'WWW-Authenticate' in response.headers['access-control-expose-headers']
+    assert client.post('/mcp',headers={'Origin':'https://mcpize.com','Authorization':'Bearer secret'}).status_code==200
+    assert client.options('/mcp',headers={**headers,'Origin':'https://evil.example'}).status_code==400
+    assert 'access-control-allow-origin' not in client.get('/shop',headers={'Origin':'https://mcpize.com'}).headers

@@ -5,8 +5,28 @@ from typing import Any
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
+from starlette.middleware.cors import CORSMiddleware
 
 from .auth import ApiKeyGate
+
+
+class MCPBrowserAccess:
+    """Handle browser preflight before authentication, only on the MCP endpoint."""
+
+    def __init__(self, app: Any, origins: list[str]) -> None:
+        self.app = app
+        self.cors = CORSMiddleware(
+            app, allow_origins=origins,
+            allow_methods=['GET', 'POST', 'DELETE'],
+            allow_headers=['Authorization', 'X-API-Key', 'Content-Type',
+                           'MCP-Protocol-Version', 'Mcp-Session-Id', 'Last-Event-ID'],
+            expose_headers=['WWW-Authenticate', 'Mcp-Session-Id', 'MCP-Protocol-Version'],
+            allow_credentials=False,
+        )
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        target = self.cors if scope.get('type') == 'http' and scope.get('path') == '/mcp' else self.app
+        await target(scope, receive, send)
 
 
 class ApiKeyASGIMiddleware:
