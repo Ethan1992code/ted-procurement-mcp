@@ -19,7 +19,7 @@ class MCPBrowserAccess:
             app, allow_origins=origins,
             allow_methods=['GET', 'POST', 'DELETE'],
             allow_headers=['Authorization', 'X-API-Key', 'Content-Type',
-                           'MCP-Protocol-Version', 'Mcp-Session-Id', 'Last-Event-ID'],
+                           'MCP-Protocol-Version', 'Mcp-Session-Id', 'Mcp-Method', 'Last-Event-ID'],
             expose_headers=['WWW-Authenticate', 'Mcp-Session-Id', 'MCP-Protocol-Version'],
             allow_credentials=False,
         )
@@ -65,6 +65,9 @@ class ApiKeyASGIMiddleware:
         token = self._extract_key(self._headers(scope))
         if token and token.count(".") == 2 and self.oauth_verifier:
             if await self.oauth_verifier.verify(token):
+                # Verification above checked the signature, audience and current owner.
+                import jwt
+                scope = {**scope, "mcp_event_owner": "oauth:" + jwt.decode(token, options={"verify_signature": False})["sub"]}
                 await self.app(scope, receive, send)
                 return
             result = {"allowed": False, "reason": "invalid_oauth_token"}
@@ -80,6 +83,8 @@ class ApiKeyASGIMiddleware:
             await response(scope, receive, send)
             return
 
+        from .auth import hash_api_key
+        scope = {**scope, "mcp_event_owner": "api:" + hash_api_key(token)}
         await self.app(scope, receive, send)
 
 

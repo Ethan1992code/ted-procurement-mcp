@@ -55,6 +55,34 @@ def create_server(*, store: Any | None = None):
     server = MCPServer("TED Procurement Intelligence")
     service = ProcurementService(TedClient(), store=store)
     register_tools(server, service)
+    if _truthy(os.getenv("MCP_EVENTS_ENABLED")):
+        if store is None or not _truthy(os.getenv("MCP_REQUIRE_API_KEY")):
+            raise RuntimeError("MCP Events requires durable storage and authentication")
+        from .event_store import EventStore
+        from .events import EventService
+        from .event_scanner import EventScanner, owner_authorized
+        import hmac
+        event_store = EventStore(store)
+        server.ted_events = EventService(event_store)
+
+        @server.custom_route("/internal/events/scan", methods=["GET"])
+        async def scan_events(request):
+            secret = os.getenv("CRON_SECRET", "").strip()
+            if not secret:
+                return JSONResponse({"error": "cron_not_configured"}, status_code=503)
+            if not hmac.compare_digest(request.headers.get("authorization", ""), "Bearer " + secret):
+                return JSONResponse({"error": "unauthorized"}, status_code=401)
+            async def authorized(owner):
+                return await owner_authorized(store, owner)
+            import asyncio
+            client = TedClient(timeout_seconds=10)
+            try:
+                scanner = EventScanner(event_store, client, authorized=authorized)
+                return JSONResponse(await asyncio.wait_for(scanner.run(), timeout=50))
+            except TimeoutError:
+                return JSONResponse({"status": "bounded_scan_timeout", "retry_on_next_scan": True}, status_code=202)
+            finally:
+                await client.aclose()
     from .aipay import register_paid_search
     register_paid_search(server, service)
     from .web_shop import register_web_shop
@@ -123,6 +151,9 @@ def create_http_app(*, store: Any | None = None):
     )
     require_api_key = _truthy(os.getenv("MCP_REQUIRE_API_KEY"))
     gate = ApiKeyGate(store) if store is not None else None
+    if hasattr(server, "ted_events"):
+        from .events_asgi import EventsASGI
+        app = EventsASGI(app, server.ted_events)
     from .oauth_auth import verifier_from_env
     protected = ApiKeyASGIMiddleware(app, gate, required=require_api_key, oauth_verifier=verifier_from_env())
     origins = [x.strip() for x in os.getenv('MCP_ALLOWED_ORIGINS', '').split(',') if x.strip() and x.strip() != '*']
