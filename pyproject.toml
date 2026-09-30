@@ -14,7 +14,8 @@ dependencies = [
   "PyJWT[crypto]==2.14.0",
   "httpx>=0.28,<1",
   "pydantic>=2.10,<3",
-  "mcp>=2,<3",
+  "mcp>=2.2,<3",
+  "jsonschema>=4.20,<5",
   "starlette>=0.50,<1",
 ]
 
