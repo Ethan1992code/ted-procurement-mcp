@@ -5,5 +5,11 @@
       "maxDuration": 60,
       "excludeFiles": "{tests/**,dist/**,.pytest_cache/**,docs/**}"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/internal/events/scan",
+      "schedule": "0 1 * * *"
+    }
+  ]
 }
